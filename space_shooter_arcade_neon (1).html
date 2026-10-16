@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooter Arcade Neon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .arcade-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between items-center select-none relative">
+
+    <!-- HUD Header -->
+    <header class="w-full max-w-4xl flex justify-between items-center p-3 md:p-4 z-10 bg-slate-900/80 backdrop-blur border-b border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-3 h-3 bg-cyan-400 rounded-full animate-ping"></span>
+            <h1 class="arcade-font text-[10px] md:text-sm text-cyan-400 tracking-wider">SPACE SHOOTER</h1>
+        </div>
+        <div class="flex gap-4 md:gap-6 items-center">
+            <div class="text-center">
+                <p class="text-[9px] uppercase text-slate-400 font-semibold">STAGE</p>
+                <p id="stageDisplay" class="arcade-font text-xs md:text-base text-cyan-300">1</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[9px] uppercase text-slate-400 font-semibold">SKOR</p>
+                <p id="scoreDisplay" class="arcade-font text-xs md:text-lg text-amber-400">00000</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[9px] uppercase text-slate-400 font-semibold">NYAWA</p>
+                <div id="livesDisplay" class="flex gap-1 mt-1 text-rose-500 text-xs md:text-sm">
+                    ❤️❤️❤️
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Canvas Game Area -->
+    <main class="flex-1 w-full flex justify-center items-center relative overflow-hidden">
+        <canvas id="gameCanvas" class="w-full h-full shadow-2xl border-x border-cyan-900/30"></canvas>
+
+        <!-- Overlay Start Screen / Game Over / Stage Clear Screen -->
+        <div id="menuOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col justify-center items-center p-6 z-20 text-center">
+            <div class="max-w-md w-full bg-slate-900/90 border border-cyan-500/40 p-6 md:p-8 rounded-2xl shadow-2xl shadow-cyan-500/20">
+                <h2 id="menuTitle" class="arcade-font text-lg md:text-2xl text-cyan-400 mb-4 leading-relaxed">NEON ARCADE SHOOTER</h2>
+                <p id="menuDesc" class="text-xs md:text-sm text-slate-300 mb-6 leading-relaxed">
+                    Hancurkan alien penyerang dan lewati setiap stage!<br>Gunakan tombol on-screen atau keyboard (A-D / Panah) untuk bergerak & menembak.
+                </p>
+                <button id="startBtn" class="arcade-font w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 text-xs md:text-sm rounded-xl font-bold shadow-lg shadow-cyan-500/40 transition-all transform hover:scale-105 active:scale-95 cursor-pointer">
+                    MULAI PERMAINAN
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- On-Screen Controls Footer (Tombol Kiri, Kanan, Tembak di Layar) -->
+    <footer class="w-full max-w-4xl p-3 flex justify-between items-center z-10 bg-slate-900/90 backdrop-blur border-t border-cyan-500/30 gap-3">
+        <div class="flex gap-2">
+            <button id="btnLeft" class="w-16 h-14 md:w-20 md:h-16 bg-slate-800 hover:bg-cyan-700/50 active:bg-cyan-600 border border-cyan-500/40 rounded-xl flex items-center justify-center text-cyan-400 text-xl font-bold shadow-md shadow-cyan-500/10 cursor-pointer transition-transform active:scale-95">
+                ◀
+            </button>
+            <button id="btnRight" class="w-16 h-14 md:w-20 md:h-16 bg-slate-800 hover:bg-cyan-700/50 active:bg-cyan-600 border border-cyan-500/40 rounded-xl flex items-center justify-center text-cyan-400 text-xl font-bold shadow-md shadow-cyan-500/10 cursor-pointer transition-transform active:scale-95">
+                ▶
+            </button>
+        </div>
+        <div class="text-center hidden sm:block text-[11px] text-slate-400">
+            <span>Gunakan tombol sentuh atau keyboard</span>
+        </div>
+        <div>
+            <button id="btnShoot" class="w-28 h-14 md:w-36 md:h-16 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 active:scale-95 border border-rose-400/50 rounded-xl flex items-center justify-center text-slate-950 arcade-font text-xs font-extrabold shadow-lg shadow-rose-500/30 cursor-pointer transition-transform">
+                TEMBAK
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Elemen HUD & Menu
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const stageDisplay = document.getElementById('stageDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const menuOverlay = document.getElementById('menuOverlay');
+        const menuTitle = document.getElementById('menuTitle');
+        const menuDesc = document.getElementById('menuDesc');
+        const startBtn = document.getElementById('startBtn');
+
+        // Tombol On-Screen
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+        const btnShoot = document.getElementById('btnShoot');
+
+        // Konfigurasi Game State & Level/Stage
+        let gameState = 'START'; // START, PLAYING, STAGECLEAR, GAMEOVER
+        let score = 0;
+        let lives = 3;
+        let currentStage = 1;
+        let stageScoreTarget = 1000; // Skor target untuk naik stage berikutnya
+        let animationFrameId;
+
+        // Atur Ukuran Canvas Responsif
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Entitas Game
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 80,
+            width: 44,
+            height: 44,
+            speed: 8
+        };
+
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let stars = [];
+
+        // Inisialisasi Latar Belakang Bintang
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 1,
+                    speed: Math.random() * 2 + 0.5
+                });
+            }
+        }
+
+        // Kontrol Keyboard
+        let keys = { Left: false, Right: false, Space: false };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.Right = true;
+            if (e.code === 'Space') {
+                keys.Space = true;
+                if (gameState === 'PLAYING') shootBullet();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.Right = false;
+            if (e.code === 'Space') keys.Space = false;
+        });
+
+        // Event Listener Tombol On-Screen (Touch & Mouse Support)
+        const bindTouchButton = (btn, keyName) => {
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                keys[keyName] = true;
+                if (keyName === 'Space' && gameState === 'PLAYING') {
+                    shootBullet();
+                }
+            });
+            btn.addEventListener('pointerup', (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+            });
+            btn.addEventListener('pointerleave', (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+            });
+        };
+
+        bindTouchButton(btnLeft, 'Left');
+        bindTouchButton(btnRight, 'Right');
+        bindTouchButton(btnShoot, 'Space');
+
+        // Fungsi Tembak Peluru
+        let lastShotTime = 0;
+        function shootBullet() {
+            const now = Date.now();
+            if (now - lastShotTime < 160) return; // Batasi jeda tembak
+            lastShotTime = now;
+            bullets.push({
+                x: player.x,
+                y: player.y - player.height / 2,
+                width: 4,
+                height: 14,
+                speed: 10
+            });
+        }
+
+        // Spawn Musuh (Alien) dengan tingkat kesulitan berdasar Stage
+        let enemySpawnTimer = 0;
+        function spawnEnemy() {
+            const types = ['normal', 'fast', 'tank'];
+            // Variasi jenis alien berdasarkan stage
+            let typeWeights = ['normal', 'normal', 'fast'];
+            if (currentStage >= 2) typeWeights.push('tank', 'fast');
+            if (currentStage >= 3) typeWeights = ['normal', 'fast', 'fast', 'tank', 'tank'];
+
+            const chosenType = typeWeights[Math.floor(Math.random() * typeWeights.length)];
+            
+            let eWidth = 40;
+            let eHeight = 40;
+            let eSpeed = 1.5 + (currentStage * 0.4); // Kecepatan meningkat tiap stage
+            let eLife = 1;
+
+            if (chosenType === 'fast') {
+                eSpeed += 1.2;
+                eWidth = 32;
+                eHeight = 32;
+            } else if (chosenType === 'tank') {
+                eSpeed = Math.max(0.7, eSpeed - 0.5);
+                eWidth = 50;
+                eHeight = 50;
+                eLife = 2 + Math.floor(currentStage / 2);
+            }
+
+            const margin = 50;
+            const x = Math.random() * (canvas.width - margin * 2) + margin;
+
+            enemies.push({
+                x: x,
+                y: -50,
+                width: eWidth,
+                height: eHeight,
+                speed: eSpeed,
+                type: chosenType,
+                life: eLife,
+                maxLife: eLife
+            });
+        }
+
+        // Buat Efek Partikel Ledakan
+        function createExplosion(x, y, color = '#38bdf8') {
+            for (let i = 0; i < 15; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                particles.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    size: Math.random() * 3 + 1,
+                    color: color,
+                    alpha: 1,
+                    decay: Math.random() * 0.03 + 0.015
+                });
+            }
+        }
+
+        // Reset Game Total
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            currentStage = 1;
+            stageScoreTarget = 1000;
+            bullets = [];
+            enemies = [];
+            particles = [];
+            player.x = canvas.width / 2;
+            updateHUD();
+        }
+
+        function updateHUD() {
+            scoreDisplay.textContent = String(score).padStart(5, '0');
+            stageDisplay.textContent = currentStage;
+            livesDisplay.textContent = '❤️'.repeat(Math.max(0, lives));
+        }
+
+        // Cek Transisi Stage
+        function checkStageProgress() {
+            if (score >= currentStage * stageScoreTarget) {
+                currentStage++;
+                enemies = []; // Bersihkan musuh lama saat naik stage
+                bullets = [];
+                gameState = 'STAGECLEAR';
+                
+                menuTitle.textContent = `STAGE ${currentStage - 1} SELESAI!`;
+                menuDesc.innerHTML = `Selamat Kapten! Memasuki <strong class="text-cyan-400 arcade-font">STAGE ${currentStage}</strong>.<br>Musuh semakin kuat dan cepat!`;
+                startBtn.textContent = `LANJUT KE STAGE ${currentStage}`;
+                menuOverlay.classList.remove('hidden');
+            }
+        }
+
+        // Mulai Permainan / Lanjut Stage
+        startBtn.addEventListener('click', () => {
+            menuOverlay.classList.add('hidden');
+            if (gameState === 'GAMEOVER') {
+                resetGame();
+            }
+            gameState = 'PLAYING';
+            initStars();
+        });
+
+        // Loop Utama Game (Game Loop)
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Update & Render Bintang Latar Belakang
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                star.y += star.speed + (currentStage * 0.2);
+                if (star.y > canvas.height) star.y = 0;
+                ctx.globalAlpha = star.size / 3;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+            ctx.globalAlpha = 1.0;
+
+            if (gameState === 'PLAYING') {
+                // Auto-fire jika tombol spasi atau tombol tembak on-screen ditahan
+                if (keys.Space) {
+                    shootBullet();
+                }
+
+                // Gerakan Pemain
+                if (keys.Left) {
+                    player.x -= player.speed;
+                }
+                if (keys.Right) {
+                    player.x += player.speed;
+                }
+                // Batas canvas pemain
+                if (player.x < player.width / 2) player.x = player.width / 2;
+                if (player.x > canvas.width - player.width / 2) player.x = canvas.width - player.width / 2;
+
+                // 2. Render & Update Peluru
+                ctx.fillStyle = '#38bdf8';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#0ea5e9';
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    let b = bullets[i];
+                    b.y -= b.speed;
+                    ctx.fillRect(b.x - b.width / 2, b.y, b.width, b.height);
+
+                    if (b.y < 0) {
+                        bullets.splice(i, 1);
+                    }
+                }
+                ctx.shadowBlur = 0;
+
+                // 3. Spawner Musuh (Interval semakin cepat di stage tinggi)
+                enemySpawnTimer++;
+                const spawnInterval = Math.max(25, 80 - (currentStage * 12));
+                if (enemySpawnTimer > spawnInterval) {
+                    spawnEnemy();
+                    enemySpawnTimer = 0;
+                }
+
+                // 4. Render & Update Musuh (Alien)
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let en = enemies[i];
+                    en.y += en.speed;
+
+                    // Gambar Alien
+                    ctx.save();
+                    ctx.translate(en.x, en.y);
+                    
+                    if (en.type === 'fast') {
+                        ctx.fillStyle = '#f43f5e';
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = '#e11d48';
+                        ctx.beginPath();
+                        ctx.moveTo(0, en.height / 2);
+                        ctx.lineTo(-en.width / 2, -en.height / 2);
+                        ctx.lineTo(en.width / 2, -en.height / 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (en.type === 'tank') {
+                        ctx.fillStyle = '#a855f7';
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = '#9333ea';
+                        ctx.fillRect(-en.width / 2, -en.height / 2, en.width, en.height);
+                        ctx.fillStyle = '#e9d5ff';
+                        ctx.fillRect(-en.width / 4, -en.height / 4, en.width / 2, en.height / 2);
+                    } else {
+                        ctx.fillStyle = '#10b981';
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#059669';
+                        ctx.fillRect(-en.width / 2, -en.height / 2, en.width, en.height);
+                        ctx.clearRect(-en.width / 4, -en.height / 4, en.width / 2, en.height / 3);
+                    }
+                    ctx.restore();
+
+                    // Cek Tabrakan Pemain dengan Musuh
+                    const distX = Math.abs(player.x - en.x);
+                    const distY = Math.abs(player.y - en.y);
+                    if (distX < (player.width / 2 + en.width / 2) && distY < (player.height / 2 + en.height / 2)) {
+                        createExplosion(en.x, en.y, '#f43f5e');
+                        enemies.splice(i, 1);
+                        lives--;
+                        updateHUD();
+                        if (lives <= 0) {
+                            triggerGameOver();
+                        }
+                        continue;
+                    }
+
+                    // Cek Lewat Batas Bawah
+                    if (en.y > canvas.height + 50) {
+                        enemies.splice(i, 1);
+                        lives--;
+                        updateHUD();
+                        if (lives <= 0) {
+                            triggerGameOver();
+                        }
+                        continue;
+                    }
+
+                    // Cek Tabrakan Peluru dengan Musuh
+                    for (let j = bullets.length - 1; j >= 0; j--) {
+                        let b = bullets[j];
+                        const bDistX = Math.abs(b.x - en.x);
+                        const bDistY = Math.abs(b.y - en.y);
+                        if (bDistX < en.width / 2 && bDistY < en.height / 2) {
+                            bullets.splice(j, 1);
+                            en.life--;
+                            
+                            if (en.life <= 0) {
+                                createExplosion(en.x, en.y, en.type === 'tank' ? '#a855f7' : '#10b981');
+                                score += (en.type === 'tank' ? 300 : en.type === 'fast' ? 150 : 100);
+                                updateHUD();
+                                enemies.splice(i, 1);
+                                checkStageProgress();
+                            } else {
+                                createExplosion(b.x, b.y, '#38bdf8');
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // 5. Render Partikel
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.dx;
+                    p.y += p.dy;
+                    p.alpha -= p.decay;
+
+                    if (p.alpha <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.save();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                    ctx.restore();
+                }
+
+                // 6. Render Pesawat Pemain
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#06b6d4';
+                
+                ctx.fillStyle = '#06b6d4';
+                ctx.beginPath();
+                ctx.moveTo(0, -player.height / 2);
+                ctx.lineTo(player.width / 2, player.height / 2);
+                ctx.lineTo(-player.width / 2, player.height / 2);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#93c5fd';
+                ctx.beginPath();
+                ctx.moveTo(0, -player.height / 4);
+                ctx.lineTo(player.width / 5, player.height / 4);
+                ctx.lineTo(-player.width / 5, player.height / 4);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(-6, player.height / 2, 12, Math.random() * 12 + 6);
+
+                ctx.restore();
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            menuTitle.textContent = "PERMAINAN SELESAI";
+            menuDesc.innerHTML = `Skor Akhir Anda: <strong class="text-amber-400 arcade-font text-base">${score}</strong><br>Mencapai Stage ${currentStage}. Coba lagi, Kapten!`;
+            startBtn.textContent = "MAIN LAGI";
+            menuOverlay.classList.remove('hidden');
+        }
+
+        // Inisialisasi awal
+        initStars();
+        animationFrameId = requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
